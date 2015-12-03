@@ -128,18 +128,27 @@ class Operator
       @repr = matcher.repr
       if matcher.regex
         @regex = new RegExp(matcher.regex)
-    if !@repr
+    unless @repr
       @repr = @string.toUpperCase().replace(/-/g, '')
     @code = "#{@category_abbr}.#{@repr}"
     if @category_id is 'punctuation' and @string in [".", ".."]
       @code = @repr
     Operator.lookup[@code] = @
+  match: (str)->
+    if str and @regex
+      str.match(@regex)
+    else
+      str == @string
 
 operators = []
+_clear_operators = ->
+  `while(operators.pop()){}`
+  Operator.lookup = {}
+
 operators.Kls = Operator
 
 operators.load_operators = (local_params)->
-  Operator.lookup = {}
+  _clear_operators()
   for category_id in local_params.categories
     category = local_params[category_id]
     abbr = category.abbr or category_id

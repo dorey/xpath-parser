@@ -33,31 +33,13 @@ ESCAPED_CHARACTERS = {
 
 class Expression
   constructor: (params={})->
-    @uniqueIdCnt = 0
+    uniqueIdCnt = 0
+    @_uniqueId = (suffix)-> "#{suffix}#{uniqueIdCnt++}"
+
     if params.str
       @parse_str(params.str)
     if params.arr
       @parse_arr(params.arr)
-
-  object_to_str: (arr, join_with)->
-    arr2s = (arr, join_with=' ')->
-      out = []
-      for item in arr
-        if _.isString(item) and operators.Kls.lookup[item]
-          out.push operators.Kls.lookup[item].string
-        else if _.isString(item)
-          out.push item
-        else if item.method
-          out.push "#{item.method}(#{arr2s(item.arguments, join_with)})"
-        else if item.lookup
-          out.push "${#{item.lookup}}"
-        else if item.path
-          out.push arr2s(item.path, '')
-        else if _.isArray(item)
-          out.push "(#{arr2s(item)})"
-      out.join(join_with)
-    arr2s arr, join_with
-
 
   parse_arr: (arr)->
     _asString = @object_to_str(arr)
@@ -87,6 +69,7 @@ class Expression
     _str = @pull_out_xpaths(_str)
     _str = @pull_out_operators(_str)
     _str = @strip_whitespace(_str)
+    _str = @pull_out_methods(_str)
 
     _str = _replace_dict_items(_str, @operators, false)
     _str = _replace_dict_items(_str, @paths, false)
@@ -101,10 +84,8 @@ class Expression
     _unnested_object = @_hacky_restructure_json(_as_json)
     @as_structured_json = @move_method_arguments(_unnested_object)
     @toObject = ()=> @as_structured_json
-    @toString = ()=> @as_structured_json
+    @toString = ()=> @object_to_str @as_structured_json
 
-  _uniqueId: (suffix)->
-    "#{suffix}#{@uniqueIdCnt++}"
 
   replace_consts: (_str)->
     for key, val of ESCAPED_CHARACTERS
@@ -171,6 +152,8 @@ class Expression
 
   pull_out_operators: (_str)->
     for operator in operators
+      if operator.category_id is "methods"
+        continue
       if operator.regex
         _str = _str.replace(operator.regex, " #{operator.code} ")
         continue
@@ -185,6 +168,19 @@ class Expression
         if loop_count > 500
           throw new Error("infinite while loop")
     _str
+
+  pull_out_methods: (_str)->
+    methods = do ->
+      out = {}
+      for op in operators when op.category_id is "methods"
+        out[op.string] = op
+      out
+    _arr = _str.split(' ').map (item)->
+      if methods[item]
+        methods[item].code
+      else
+        item
+    _arr.join(' ')
 
   strip_whitespace: (_str)->
     _str = _strStrip(_str)
@@ -209,6 +205,25 @@ class Expression
       return JSON.parse(newstr)
     catch e
       throw new Error('unmatched parentheses')
+
+  object_to_str: (arr, join_with)->
+    arr2s = (arr, join_with=' ')->
+      out = []
+      for item in arr
+        if _.isString(item) and operators.Kls.lookup[item]
+          out.push operators.Kls.lookup[item].string
+        else if _.isString(item)
+          out.push item
+        else if item.method
+          out.push "#{item.method}(#{arr2s(item.arguments, join_with)})"
+        else if item.lookup
+          out.push "${#{item.lookup}}"
+        else if item.path
+          out.push arr2s(item.path, '')
+        else if _.isArray(item)
+          out.push "(#{arr2s(item)})"
+      out.join(join_with)
+    arr2s arr, join_with
 
   move_method_arguments: (arr)->
     move_args = (arr)->

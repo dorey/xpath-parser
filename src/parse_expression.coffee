@@ -33,13 +33,19 @@ ESCAPED_CHARACTERS = {
 
 class Expression
   constructor: (params={})->
-    uniqueIdCnt = 0
-    @_uniqueId = (suffix)-> "#{suffix}#{uniqueIdCnt++}"
+    if params.parent
+      @parent = params.parent
+      @__uniqueIdCnt = @parent.__uniqueIdCnt + 1
+    else
+      @__uniqueIdCnt = 0
 
     if params.str
       @parse_str(params.str)
     if params.arr
       @parse_arr(params.arr)
+
+  _uniqueId: (suffix)->
+    "#{suffix}#{@__uniqueIdCnt++}"
 
   parse_arr: (arr)->
     _asString = @object_to_str(arr)
@@ -50,10 +56,14 @@ class Expression
     @original = str
     _str = "#{@original}"
     @local_replacements = []
-    @dict = {}
-    @lookups = {}
-    @operators = {}
-    @paths = {}
+
+    # responsible for setting @dict, @predicates, @lookups
+    # @operators, and @paths
+    for prop in ['dict', 'predicates', 'lookups', 'operators', 'paths']
+      if @parent
+        @[prop] = _.clone(@parent[prop])
+      else
+        @[prop] = {}
 
     _str = @replace_consts(_str)
 
@@ -65,6 +75,8 @@ class Expression
     _str = @convert_lookups(_str)
 
     @anonymized = "#{_str}"
+
+    _str = @pull_out_predicates(_str)
 
     _str = @pull_out_xpaths(_str)
     _str = @pull_out_operators(_str)
@@ -82,7 +94,9 @@ class Expression
       new ParsedChunk(item, parentLine: @)
     _as_json = JSON.stringify(_.pluck(@items, 'as_json'))
     _unnested_object = @_hacky_restructure_json(_as_json)
+    _unnested_object = @restore_predicates(_unnested_object)
     @as_structured_json = @move_method_arguments(_unnested_object)
+
     @toObject = ()=> @as_structured_json
     @toString = ()=> @object_to_str @as_structured_json
 
@@ -106,6 +120,56 @@ class Expression
       _str = _str.replace(mtch[1], _key)
       _str = @pull_out_wrapped_quotes(_str, single)
     _str
+
+  pull_out_predicates: (_str)->
+    unless _str.match(/[\[\]]/g)
+      return _str
+    # step1: convert A to B
+    # A: ["x[y]z"]
+    # B: ["x", ["y"], "z"]
+    try
+      _json = JSON.stringify(_str)
+                  .replace(/\]/g, '"], "')
+                  .replace(/\[/g, '", ["')
+      _restructured = JSON.parse("[" + _json + "]")
+    catch e
+      throw new Error('unmatched brackets in predicate')
+    smush = (arr, layer_n=0)=>
+      _out = ""
+      for item in arr
+        if _.isArray(item)
+          smushed = smush(item, layer_n + 1)
+          if layer_n is 0
+            ucode = @_uniqueId('PREDICATE')
+            @predicates[ucode] = smush(item)
+            _out += " #{ucode} "
+          else
+            _out += smushed
+        else
+          _out += item
+      _out
+    smush _restructured
+
+  restore_predicates: (arr)->
+    # _restore_predicates = (arr)=>
+    out = []
+    for item in arr
+      if _.isArray(item)
+        out.push(@restore_predicates(item))
+      else if item of @predicates
+        inner_predicate = @predicates[item]
+        if inner_predicate
+          _p = new Expression(str: inner_predicate, parent: @).toObject()
+        else
+          log item
+          _p = []
+
+        out.push(
+          predicate: _p
+        )
+      else
+        out.push(item)
+    out
 
   pull_out_xpaths: (_str)->
     while mtch = _str.match ///
@@ -220,6 +284,8 @@ class Expression
           out.push "${#{item.lookup}}"
         else if item.path
           out.push arr2s(item.path, '')
+        else if item.predicate
+          out.push "[ #{arr2s(item.predicate)} ]"
         else if _.isArray(item)
           out.push "(#{arr2s(item)})"
       out.join(join_with)

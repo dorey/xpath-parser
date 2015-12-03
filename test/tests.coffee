@@ -152,3 +152,32 @@ describe 'accepts array input', ->
                   }
                 ]).toString()
                 .should.equal('current()/path/to/node')
+
+describe 'predicates', ->
+  it 'handles basic predicate', ->
+    parse_expression('/path/to/node [ position() = 2 ]').toObject()
+                .should.deepEqual([
+                  {path: '/path/to/node'},
+                  {predicate: [
+                    {
+                      method: 'position',
+                      arguments: [],
+                    },
+                    'comp.EQ',
+                    '2'
+                    ]
+                  }])
+
+  it 'reverses also', ->
+    parse_expression([
+                  {path: '/path/to/node'},
+                  {predicate: [
+                    {
+                      method: 'position',
+                      arguments: [],
+                    },
+                    'comp.EQ',
+                    '2'
+                    ]
+                  }]).toString()
+                .should.equal('/path/to/node [ position() = 2 ]')

@@ -1,172 +1,15 @@
 _ = require('underscore')
 log = (args...)-> console.log.apply(console, args)
 
-parse_expression = (input)->
+operators = require('./operators')
+
+module.exports = parse_expression = (input)->
   if _.isString(input)
     new Expression(str: input)
   else if _.isArray(input)
     new Expression(arr: input)
   else
     new Expression(input)
-module.exports = parse_expression
-
-###
-begin "operators"
-###
-params =
-  "categories": [
-      'punctuation'
-      'prefix'
-      'methods'
-      'spacing'
-      'unkown'
-      'parentheses'
-      'comparators'
-      'operators'
-      'values'
-      'logic'
-    ],
-  "prefix": {
-    matchers: [
-      {
-        regex: '^jr\:',
-        string: 'jr:',
-        repr: 'JR',
-      }
-    ]
-  }
-  "punctuation": {
-    abbr: "punc"
-    matchers: [
-      ["..", "DOTPREVIOUS"],
-      [".", "DOTSELF"],
-      ["//", 'DBLFWDSLASH']
-      ["/", 'FWDSLASH']
-      [",", 'COMMA']
-    ]
-  },
-  "methods": {
-    abbr: "method",
-    matchers: [
-      "ceiling"
-      "concat"
-      "count"
-      "count-selected"
-      "current"
-      "date"
-      "false"
-      "floor"
-      "id"
-      "if"
-      "not"
-      "position"
-      "regex"
-      "round"
-      "selected"
-      "selected-at"
-      "string"
-      "string-length"
-      "substr"
-      "sum"
-      "today"
-      "true"
-    ]
-  },
-  "spacing": {
-    matchers: [
-      ["\n", "NEWLINE"]
-    ]
-  },
-  "unkown": {
-    "abbr": "unk",
-    matchers: [
-      "undefined"
-    ]
-  }
-  "comparators": {
-    abbr: "comp",
-    matchers: [
-      [">=", "GTE"]
-      ["<=", "LTE"]
-      ["!=", "NEQ"]
-      ["=", "EQ"]
-      [">", "GT"]
-      ["<", "LT"]
-    ]
-  },
-  "operators": {
-    abbr: "op"
-    matchers: [
-      ["+", 'PLUS']
-      ["-", 'MINUS']
-      ["*", "MULT"]
-      "div"
-      "mod"
-    ]
-  }
-  "values": {
-    "abbr": "val",
-    matchers: [
-      ['""', 'EMPTY']
-      ["''", 'EMPTY']
-      ['NULL', 'NIL']
-    ]
-  }
-  "parentheses": {
-    "abbr": "parens",
-    matchers: [
-      ['(', 'OPEN']
-      [')', 'CLOSED']
-    ]
-  }
-  "logic": {
-    abbr: "log",
-    matchers: [
-      "and"
-      "or"
-      # ["|", "UNION"]
-    ]
-  }
-
-operators_by_code = {}
-
-class Operator
-  @lookup = {}
-  constructor: (@category_id, @category_abbr, matcher)->
-    if matcher is undefined
-      throw new Error('cannot match undefined operator value')
-    if _.isString(matcher)
-      @string = matcher
-    else if _.isArray(matcher)
-      [@string, @repr] = matcher
-    else
-      @string = matcher.string
-      @repr = matcher.repr
-      if matcher.regex
-        @regex = new RegExp(matcher.regex)
-    if !@repr
-      @repr = @string.toUpperCase().replace(/-/g, '')
-    @code = "#{@category_abbr}.#{@repr}"
-    if @category_id is 'punctuation' and @string in [".", ".."]
-      @code = @repr
-    operators_by_code[@code] = @
-
-Operator.lookup = operators_by_code
-
-operators = []
-for category_id in params.categories
-  category = params[category_id]
-  abbr = category.abbr or category_id
-  for matcher in category.matchers
-    operators.push(new Operator(category_id, abbr, matcher))
-
-operators.kls = Operator
-operators.operator_list = operators
-operators.operators_by_code = operators_by_code
-
-###
-Begin parse_expression
-###
 
 _contains = (str, it)->
   str.indexOf(it) isnt -1
@@ -188,8 +31,6 @@ ESCAPED_CHARACTERS = {
   __ESC_SNG_QT__: "\\'"
 }
 
-operator_list = operators
-
 class Expression
   constructor: (params={})->
     @uniqueIdCnt = 0
@@ -202,8 +43,8 @@ class Expression
     arr2s = (arr, join_with=' ')->
       out = []
       for item in arr
-        if _.isString(item) and operators_by_code[item]
-          out.push operators_by_code[item].string
+        if _.isString(item) and operators.Kls.lookup[item]
+          out.push operators.Kls.lookup[item].string
         else if _.isString(item)
           out.push item
         else if item.method
@@ -329,7 +170,7 @@ class Expression
     _str
 
   pull_out_operators: (_str)->
-    for operator in operator_list
+    for operator in operators
       if operator.regex
         _str = _str.replace(operator.regex, " #{operator.code} ")
         continue
@@ -380,7 +221,7 @@ class Expression
         next_item = arr[n + 1]
         if _.isString(item) and item.match(/^method\.(.*)$/) and _.isArray(next_item)
           out.push({
-              method: operators_by_code[item].string,
+              method: operators.Kls.lookup[item].string,
               arguments: move_args(next_item),
             })
           next_item = false
@@ -438,9 +279,9 @@ class ParsedChunk
         }
       else
         @as_json = { path: @_path }
-    else if operators_by_code[_item]
+    else if operators.Kls.lookup[_item]
       chunk_dotcode = _item
-      @_value = operators_by_code[_item].string
+      @_value = operators.Kls.lookup[_item].string
       @dotcode = chunk_dotcode
       @csscode = _item.toLowerCase().replace('.', '-')
       @type = @csscode.split('-')[0]

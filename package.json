@@ -15,7 +15,7 @@
     "should": "^7.1.1"
   },
   "scripts": {
-    "test": "mocha",
+    "test": "make test",
     "postinstall": "make build"
   },
   "repository": {

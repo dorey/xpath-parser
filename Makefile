@@ -9,12 +9,12 @@ clean:
 	rm -rf lib/ test/*.js
 
 build:
-	coffee -o lib/ -c src/ && coffee -c test/tests.coffee
+	coffee -o lib/ -c src/
 
 test: build
-	mocha test/tests.js
+	mocha
 
-dist: clean init docs build test
+dist: clean init build test
 
 publish: dist
 	npm publish

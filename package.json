@@ -1,15 +1,19 @@
 {
   "name": "xpath-parser",
   "version": "0.4.5",
-  "description": "convert xpath expressions into a JSON array",
-  "main": "index.js",
+  "description": "convert xpath expressions into a JSON array and back",
+  "main": "lib/parse_expression.js",
   "directories": {
     "test": "test"
   },
   "dependencies": {
+    "coffee-script": "^1.10.0",
     "underscore": "^1.8.3"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "mocha": "^2.3.4",
+    "should": "^7.1.1"
+  },
   "scripts": {
     "test": "mocha"
   },

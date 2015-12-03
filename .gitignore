@@ -29,3 +29,5 @@ $RECYCLE.BIN/
 
 node_modules/
 .tmp
+
+lib/*

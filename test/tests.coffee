@@ -2,8 +2,7 @@ should = require 'should'
 
 log = (args...)-> console.log.apply(console, args)
 
-parse_expression = require '../src/utils/parse_expression.coffee'
-
+parse_expression = require '../lib/parse_expression'
 
 describe 'should create equiv json', ->
   it 'simple lookup', ->

@@ -63,6 +63,16 @@ describe 'should create equiv json', ->
                       }]
                   )
 
+  it 'conflicting method names', ->
+    parse_expression('countries > 3').toObject()
+                .should.deepEqual(
+                    [
+                      "countries"
+                      "comp.GT"
+                      "3"
+                    ]
+                  )
+
   it 'complex methods', ->
     parse_expression('concat(count(current()/../path/node/*), ${a}, "2", "4")').toObject()
                 .should.deepEqual(

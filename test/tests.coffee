@@ -4,10 +4,6 @@ log = (args...)-> console.log.apply(console, args)
 
 parse_expression = require '../lib/parse_expression'
 
-describe 'autofail', ->
-  it 'tests travis failure', ->
-    "foo".should.equal("bar")
-
 describe 'should create equiv json', ->
   it 'simple lookup', ->
     parse_expression('${something}').toObject()

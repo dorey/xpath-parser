@@ -195,10 +195,8 @@ class Expression
     and then converts it back to an array
     ###
     try
-      newstr = json_str.replace(/"parens\.OPEN"/g, '[')
-                  .replace(/"parens\.CLOSED"/g, ']')
-                  .replace(/\[,/g,'[')
-                  .replace(/,\]/g,']')
+      newstr = json_str.replace(/"parens\.OPEN"/g, '["parens.OPEN"')
+                  .replace(/"parens\.CLOSED"/g, '"parens.CLOSED"]')
 
       if STRIP_COMMAS
         newstr = newstr.replace(/"punc\.COMMA",/g, '')
@@ -215,13 +213,13 @@ class Expression
         else if _.isString(item)
           out.push item
         else if item.method
-          out.push "#{item.method}(#{arr2s(item.arguments, join_with)})"
+          out.push "#{item.method}#{arr2s(item.arguments, join_with)}"
         else if item.lookup
           out.push "${#{item.lookup}}"
         else if item.path
           out.push arr2s(item.path, '')
         else if _.isArray(item)
-          out.push "(#{arr2s(item)})"
+          out.push arr2s(item)
       out.join(join_with)
     arr2s arr, join_with
 

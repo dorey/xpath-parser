@@ -42,7 +42,7 @@ describe 'should create equiv json', ->
 
   it 'parentheses', ->
     parse_expression('(asdf)').toObject()
-                .should.deepEqual [["asdf"]]
+                .should.deepEqual [["parens.OPEN", "asdf", "parens.CLOSED"]]
 
   it 'punctuation', ->
     parse_expression('. > 3').toObject()
@@ -59,7 +59,11 @@ describe 'should create equiv json', ->
                 .should.deepEqual(
                       [{
                         method: "count",
-                        arguments: ["asdf"]
+                        arguments: [
+                          "parens.OPEN",
+                          "asdf",
+                          "parens.CLOSED",
+                        ]
                       }]
                   )
 
@@ -79,12 +83,18 @@ describe 'should create equiv json', ->
                     [{
                       "method": "concat",
                       "arguments": [
+                        "parens.OPEN",
                         {
                           "method": "count",
-                          "arguments": [{"path": [
+                          "arguments": [
+                            "parens.OPEN",
+                            {"path": [
                               {method: 'current', arguments: []},
                               "/../path/node/*"
-                            ]}]
+                            ]
+                            },
+                            "parens.CLOSED"
+                          ]
                         },
                         # including comma for now
                         "punc.COMMA",
@@ -94,7 +104,8 @@ describe 'should create equiv json', ->
                         "'2'",
                         # including comma for now
                         "punc.COMMA",
-                        "'4'"
+                        "'4'",
+                        "parens.CLOSED"
                       ]
                     }]
                   )
@@ -145,7 +156,7 @@ describe 'accepts array input', ->
                     path: [
                       {
                         method: 'current',
-                        arguments: [],
+                        arguments: ["parens.OPEN", "parens.CLOSED"],
                       },
                       '/path/to/node',
                     ]

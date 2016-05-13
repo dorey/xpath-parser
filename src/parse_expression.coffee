@@ -85,7 +85,10 @@ class Expression
     @as_structured_json = @move_method_arguments(_unnested_object)
     @toObject = ()=> @as_structured_json
     @toString = ()=> @object_to_str @as_structured_json
-
+    @toDumbObject = ()=>
+      @object_to_dumb_object @as_structured_json
+    @toFlatDumbObject = ()=>
+      _.flatten @toDumbObject()
 
   replace_consts: (_str)->
     for key, val of ESCAPED_CHARACTERS
@@ -204,6 +207,30 @@ class Expression
     catch e
       throw new Error('unmatched parentheses')
 
+  object_to_dumb_object: (arr)->
+    out = []
+    arr2s = (arr)->
+      if _.isString(arr)
+        out.push(arr)
+      else
+        for item in arr
+          if _.isString(item) and operators.Kls.lookup[item]
+            out.push operators.Kls.lookup[item].string
+          else if _.isString(item)
+            out.push item
+          else if item.method
+            out.push "#{item.method}"
+            arr2s item.arguments
+          else if item.lookup
+            out.push item
+            # "${#{item.lookup}}"
+          else if item.path
+            arr2s item.path
+          else if _.isArray(item)
+            arr2s item
+    arr2s arr
+    out
+
   object_to_str: (arr, join_with)->
     arr2s = (arr, join_with=' ')->
       out = []
@@ -277,7 +304,10 @@ class ParsedChunk
       if @_path.match(/^current\(\)/)
         @as_json = path: [{
           method: 'current',
-          arguments: [],
+          arguments: [
+              "parens.OPEN",
+              "parens.CLOSED",
+            ],
           }, @_path.replace(/^current\(\)/, '')]
       else if @_path.match(/^instance\([^\)]+\)/)
         matched = @_path.match(/^instance\(([^\)]+)\)(.*)$/)
@@ -285,7 +315,11 @@ class ParsedChunk
           path: [
             {
               method: 'instance',
-              arguments: [matched[1]]
+              arguments: [
+                "parens.OPEN",
+                matched[1],
+                "parens.CLOSED",
+              ]
             },
             matched[2]
           ]

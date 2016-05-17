@@ -30,5 +30,6 @@ $RECYCLE.BIN/
 node_modules/
 .tmp
 
+*.pyc
 lib/*
 test/*.js

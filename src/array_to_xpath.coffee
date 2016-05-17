@@ -43,16 +43,12 @@ array_to_xpath = (outer_arr, _fns={})->
 array_to_xpath.array_to_flattened_array = (outer_arr, _fns)->
   fns = _.extend({}, DEFAULT_FNS, _fns)
 
-  # a boolean to break out of the while loop
-  _needs_parse = true
-
   # arr2x can be recursively called
   arr2x = (arr)->
-    out = []
     if _.isArray arr
       # recurse
       for item in arr
-        out.push arr2x(item)
+        arr2x item
     else if _.isString(arr) or _.isNumber(arr)
       # parameter is string or number and can be added directly
       out.push arr
@@ -69,18 +65,22 @@ array_to_xpath.array_to_flattened_array = (outer_arr, _fns)->
         else if key.search(/^\$/) isnt -1
           if key not of fns
             throw new Error("Transform function not found: #{key}")
-          out.push fns[key].call(null, arr[key])
+          arr2x fns[key].call(null, arr[key])
         else
           # discard all other keys and recurse through the values
-          out.push arr2x(arr[key])
-    out
+          arr2x arr[key]
+
+  # a boolean to break out of the while loop
+  _needs_parse = true
 
   while _needs_parse
+    out = []
     _needs_parse = false
-    outer_arr = arr2x outer_arr
+    arr2x outer_arr
     # _needs_parse will be true iff an object was present and
     # needed to be expanded
-  _.flatten outer_arr
+    outer_arr = out
+  outer_arr
 
 
 array_to_xpath.flattened_array_to_padded_string = (flattened)->

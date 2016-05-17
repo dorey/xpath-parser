@@ -36,6 +36,11 @@ array_to_xpath = (outer_arr, _fns={})->
   This shouldn't need much modification, but if necessary, it's
   recommended you run and edit the tests as well.
   """
+  flattened = array_to_xpath.array_to_flattened_array(outer_arr, _fns)
+  array_to_xpath.flattened_array_to_padded_string(flattened)
+
+
+array_to_xpath.array_to_flattened_array = (outer_arr, _fns)->
   fns = _.extend({}, DEFAULT_FNS, _fns)
 
   # a boolean to break out of the while loop
@@ -73,12 +78,13 @@ array_to_xpath = (outer_arr, _fns={})->
   while _needs_parse
     _needs_parse = false
     outer_arr = arr2x outer_arr
-
     # _needs_parse will be true iff an object was present and
     # needed to be expanded
+  _.flatten outer_arr
 
+
+array_to_xpath.flattened_array_to_padded_string = (flattened)->
   out_string = ""
-  flattened = _.flatten outer_arr
   for n in [0...flattened.length]
     p = flattened[n]
     if p of SPACE_PADDING
@@ -87,6 +93,7 @@ array_to_xpath = (outer_arr, _fns={})->
       out_string += p
   # ins_and_outs.push([outer_arr_copy, out_string])
   out_string
+
 
 # array_to_xpath.log_ins_and_outs = ()->
 #   console.log(JSON.stringify(_.zip(ins, outs)))

@@ -13,6 +13,7 @@ build:
 
 test: build
 	mocha
+	nosetests
 
 dist: clean init build test
 

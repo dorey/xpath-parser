@@ -1,7 +1,11 @@
 _ = require('underscore')
-log = (args...)-> console.log.apply(console, args)
+log = (args...)->
+  console.log("\n****\n")
+  console.log.apply(console, args)
+  console.log("\n****\n")
 
 operators = require('./operators')
+array_to_xpath = require('./array_to_xpath').array_to_xpath
 
 module.exports = parse_expression = (input)->
   if _.isString(input)
@@ -42,7 +46,7 @@ class Expression
       @parse_arr(params.arr)
 
   parse_arr: (arr)->
-    _asString = @object_to_str(arr)
+    _asString = array_to_xpath @decode_nested_parameters(arr)
     @toString = ()-> _asString
     @toObject = ()-> arr
 
@@ -82,13 +86,16 @@ class Expression
       new ParsedChunk(item, parentLine: @)
     _as_json = JSON.stringify(_.pluck(@items, 'as_json'))
     _unnested_object = @_hacky_restructure_json(_as_json)
+
+    # "@as_structured_json" is parsed and has values replaced
     @as_structured_json = @move_method_arguments(_unnested_object)
+
+    # @decoded remains parsed, but punctuation is replaced
+    @decoded = @decode_nested_parameters @as_structured_json
+    @_rebuilt = array_to_xpath(@decoded)
+
     @toObject = ()=> @as_structured_json
-    @toString = ()=> @object_to_str @as_structured_json
-    @toDumbObject = ()=>
-      @object_to_dumb_object @as_structured_json
-    @toFlatDumbObject = ()=>
-      _.flatten @toDumbObject()
+    @toString = ()=> @_rebuilt
 
   replace_consts: (_str)->
     for key, val of ESCAPED_CHARACTERS
@@ -207,32 +214,10 @@ class Expression
     catch e
       throw new Error('unmatched parentheses')
 
-  object_to_dumb_object: (arr)->
-    out = []
+  decode_nested_parameters: (arr)->
     arr2s = (arr)->
       if _.isString(arr)
-        out.push(arr)
-      else
-        for item in arr
-          if _.isString(item) and operators.Kls.lookup[item]
-            out.push operators.Kls.lookup[item].string
-          else if _.isString(item)
-            out.push item
-          else if item.method
-            out.push "#{item.method}"
-            arr2s item.arguments
-          else if item.lookup
-            out.push item
-            # "${#{item.lookup}}"
-          else if item.path
-            arr2s item.path
-          else if _.isArray(item)
-            arr2s item
-    arr2s arr
-    out
-
-  object_to_str: (arr, join_with)->
-    arr2s = (arr, join_with=' ')->
+        return arr
       out = []
       for item in arr
         if _.isString(item) and operators.Kls.lookup[item]
@@ -240,15 +225,22 @@ class Expression
         else if _.isString(item)
           out.push item
         else if item.method
-          out.push "#{item.method}#{arr2s(item.arguments, join_with)}"
+          out.push {
+            "$fn": _.flatten([item.method, arr2s(item.arguments)])
+          }
         else if item.lookup
-          out.push "${#{item.lookup}}"
+          out.push {
+            "$lookup": item.lookup
+          }
+        else if item.path and _.isString(item.path)
+          out.push arr2s item.path
         else if item.path
-          out.push arr2s(item.path, '')
+          for pi in item.path
+            out.push arr2s([pi])[0]
         else if _.isArray(item)
           out.push arr2s(item)
-      out.join(join_with)
-    arr2s arr, join_with
+      out
+    arr2s arr
 
   move_method_arguments: (arr)->
     move_args = (arr)->

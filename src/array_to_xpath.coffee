@@ -8,6 +8,8 @@ SPACE_PADDING =
   "+": " + "
   "-": " - "
   ",": ", "
+  ">": " > "
+  "<": " < "
   "=": " = "
   "<=": " <= "
   ">=": " >= "
@@ -18,6 +20,11 @@ SPACE_PADDING =
 DEFAULT_FNS =
   $lookup: (param)->
     "${#{param}}"
+  $fn: (params...)->
+    # we could check to see that open funtion name is in param[0]
+    # parens is in params[1]
+    # and close parens is in params[-1]
+    params
 
 # ins_and_outs = []
 

@@ -10,45 +10,66 @@ parse_expression = require '../lib/parse_expression'
 
 describe 'should create equiv json', ->
   it 'simple lookup', ->
-    parse_expression('${something}').toFlatDumbObject()
+    parse_expression('${something}').decoded
                 .should.deepEqual [
-                    "${something}"
-                    # $lookup: "something"
+                    $lookup: "something"
                   ]
 
+  it 'formbuilder typical sl', ->
+    parse_expression("${a} = 'a' and ${b} = 'b' and ${c} = 'c'").decoded
+                .should.deepEqual [
+                  $lookup: 'a'
+                  '='
+                  "'a'"
+                  'and'
+                  $lookup: 'b'
+                  '='
+                  "'b'"
+                  'and'
+                  $lookup: 'c'
+                  '='
+                  "'c'"
+                ]
+
   it 'simple xpaths', ->
-    parse_expression('../doubledot/preceded/xpath').toFlatDumbObject()
+    parse_expression('../doubledot/preceded/xpath').decoded
                 .should.deepEqual [
                     "../doubledot/preceded/xpath"
                   ]
 
-    parse_expression('/absolute/xpath').toFlatDumbObject()
+    parse_expression('/absolute/xpath').decoded
                   .should.deepEqual [
                     "/absolute/xpath"
                   ]
 
   it 'complex paths', ->
-    parse_expression("instance('id')/path/to/node").toFlatDumbObject()
+    parse_expression("instance('id')/path/to/node").decoded
                   .should.deepEqual [
-                    "instance"
-                    "("
-                    "'id'"
-                    ")"
+                    "$fn": [
+                      "instance"
+                      "("
+                      "'id'"
+                      ")"
+                    ]
                     "/path/to/node"
                   ]
-    parse_expression("current()/path/to/node").toFlatDumbObject()
+    parse_expression("current()/path/to/node").decoded
                   .should.deepEqual [
-                    "current",
-                    "(",
-                    ")",
+                    "$fn": [
+                      "current",
+                      "(",
+                      ")",
+                    ]
                     "/path/to/node"
                   ]
   it 'parentheses', ->
     parse_expression('(asdf)').toObject()
                 .should.deepEqual [["parens.OPEN", "asdf", "parens.CLOSED"]]
 
-    parse_expression('(asdf)').toFlatDumbObject()
-                .should.deepEqual ["(", "asdf", ")"]
+    parse_expression('(asdf)').decoded
+                .should.deepEqual [
+                    ["(", "asdf", ")"]
+                  ]
 
   it 'punctuation', ->
     parse_expression('. > 3').toObject()
@@ -57,7 +78,7 @@ describe 'should create equiv json', ->
                     "comp.GT"
                     "3"
                   ]
-    parse_expression('. > 3').toFlatDumbObject()
+    parse_expression('. > 3').decoded
                 .should.deepEqual [
                     "."
                     ">"
@@ -65,15 +86,17 @@ describe 'should create equiv json', ->
                   ]
 
   it 'methods', ->
-    parse_expression('count(asdf)').toFlatDumbObject()
+    parse_expression('count(asdf)').decoded
                 .should.deepEqual [
-                    "count"
-                    "("
-                    "asdf"
-                    ")"
+                    "$fn": [
+                      "count"
+                      "("
+                      "asdf"
+                      ")"
+                    ]
                   ]
   it 'conflicting method names', ->
-    parse_expression('countries > 3').toFlatDumbObject()
+    parse_expression('countries > 3').decoded
                 .should.deepEqual [
                     "countries"
                     ">"
@@ -81,24 +104,36 @@ describe 'should create equiv json', ->
                   ]
 
   it 'complex methods', ->
-    parse_expression('concat(count(current()/../path/node/*), ${a}, "2", "4")').toFlatDumbObject()
+    parse_expression('concat(count(current()/../path/node/*), ${a}, "2", "4")').decoded
                 .should.deepEqual [
-                  "concat"
-                  "("
-                  "count"
-                  "("
-                  "current"
-                  "("
-                  ")"
-                  "/../path/node/*"
-                  ")"
-                  ","
-                  "${a}"
-                  ","
-                  "'2'"
-                  ","
-                  "'4'"
-                  ")"
+                  {
+                    "$fn": [
+                      "concat"
+                      "("
+                      {
+                        "$fn": [
+                          "count"
+                          "("
+                          {
+                            "$fn": [
+                              "current", "(", ")"
+                            ]
+                          }
+                          "/../path/node/*"
+                          ")"
+                        ]
+                      }
+                      ","
+                      {
+                        "$lookup": "a"
+                      }
+                      ","
+                      "'2'"
+                      ","
+                      "'4'"
+                      ")"
+                    ]
+                  }
                 ]
 
 
@@ -106,7 +141,7 @@ describe 'should create equiv json', ->
     it 'single quotes', ->
       parse_expression("""
                   'abc'
-                  """).toFlatDumbObject()
+                  """).decoded
                 .should.deepEqual [
                     "'abc'"
                   ]
@@ -114,7 +149,7 @@ describe 'should create equiv json', ->
     it 'double quotes', ->
       parse_expression("""
                   "abc"
-                  """).toFlatDumbObject()
+                  """).decoded
                 .should.deepEqual [
                     "'abc'"
                   ]
@@ -129,7 +164,7 @@ describe 'should create equiv json', ->
       parse_expression("""
                   abc
                   def
-                  """).toFlatDumbObject()
+                  """).decoded
                 .should.deepEqual [
                     "abc"
                     "\n"
@@ -351,14 +386,11 @@ describe 'array to xpath', ->
       ], {
         $multiselect_question_not_selected: ([qn, val])->
           [
-            "not",
-            "(",
-            "selected(",
+            "not(selected(",
             $lookup: qn,
             ",",
             val
-            ")",
-            ")",
+            "))",
           ]
       }).should.equal(expected)
     # array_to_xpath.log_ins_and_outs()
